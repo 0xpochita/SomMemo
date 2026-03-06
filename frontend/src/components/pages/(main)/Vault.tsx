@@ -1,16 +1,34 @@
 "use client";
 
+import Image from "next/image";
+
 interface Asset {
   name: string;
   amount: string;
   symbol: string;
+  logo: string;
 }
 
 export function Vault() {
   const assets: Asset[] = [
-    { name: "Ethereum", amount: "1.5", symbol: "ETH" },
-    { name: "USD Coin", amount: "500", symbol: "USDC" },
-    { name: "NFT Collection", amount: "1", symbol: "NFT" },
+    {
+      name: "Ethereum",
+      amount: "1.5",
+      symbol: "ETH",
+      logo: "/Assets/Images/Logo/eth-logo.svg",
+    },
+    {
+      name: "USD Coin",
+      amount: "500",
+      symbol: "USDC",
+      logo: "/Assets/Images/Logo/usdc-logo.webp",
+    },
+    {
+      name: "Somnia Token",
+      amount: "1000",
+      symbol: "STT",
+      logo: "/Assets/Images/Logo/somnia-logo.webp",
+    },
   ];
 
   const totalValue = "1.5 ETH";
@@ -42,9 +60,18 @@ export function Vault() {
               key={asset.symbol}
               className="flex items-center justify-between rounded-lg border border-border-main bg-main p-4"
             >
-              <div>
-                <p className="font-medium text-foreground">{asset.name}</p>
-                <p className="text-sm text-text-muted">{asset.symbol}</p>
+              <div className="flex items-center gap-3">
+                <Image
+                  src={asset.logo}
+                  alt={asset.name}
+                  width={32}
+                  height={32}
+                  className="rounded-full"
+                />
+                <div>
+                  <p className="font-medium text-foreground">{asset.name}</p>
+                  <p className="text-sm text-text-muted">{asset.symbol}</p>
+                </div>
               </div>
               <p className="text-lg font-semibold text-foreground">
                 {asset.amount}
