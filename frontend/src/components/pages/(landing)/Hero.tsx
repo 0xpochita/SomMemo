@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 
 export function Hero() {
   return (
@@ -41,16 +42,16 @@ export function Hero() {
               className="inline-block"
             />
             Somnia Reactivity
-          </span>, SomMemo uses <span className="font-semibold text-white">cron subscriptions</span> to automatically transfer your digital assets to trusted beneficiaries if you become inactive. Fully on-chain, trustless, and transparent.
+          </span>, SomMemo uses <span className="font-semibold text-white">cron subscriptions</span> to automatically transfer your digital asset in Somnia network to trusted beneficiaries if you become inactive. Fully on-chain, trustless, and transparent.
         </p>
 
         <div className="mb-24 flex items-center gap-3">
-          <button
-            type="button"
+          <Link
+            href="/main"
             className="cursor-pointer rounded-full bg-brand px-7 py-3.5 text-sm font-medium text-white shadow-lg shadow-brand/30 transition-all hover:bg-brand-hover hover:shadow-xl hover:shadow-brand/40"
           >
             Launch App
-          </button>
+          </Link>
           <button
             type="button"
             className="group cursor-pointer rounded-full border border-white/30 bg-white/10 px-7 py-3.5 text-sm font-medium text-white backdrop-blur-sm transition-all hover:border-white/50 hover:bg-white/20"
@@ -84,6 +85,15 @@ export function Hero() {
               height={27}
             />
           </div>
+        </div>
+
+        <div className="mt-12 text-center">
+          <p className="text-xs text-white/50">
+            Automate transfer your Somnia assets to trusted beneficiaries
+          </p>
+          <p className="mt-2 text-xs text-white/40">
+            © 2026 SomMemo. All rights reserved.
+          </p>
         </div>
       </div>
     </section>

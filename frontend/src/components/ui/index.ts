@@ -1,1 +1,1 @@
-export { Silk } from "./Silk";
+export { Sidebar } from "./Sidebar";
