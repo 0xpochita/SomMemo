@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
+import { useConnection, useConnect, useDisconnect, useChainId, useSwitchChain } from "wagmi";
+import { somniaTestnet } from "@/lib/chains";
 
 interface NavItem {
   name: string;
@@ -116,6 +118,20 @@ const navItems: NavItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { address } = useConnection();
+  const { connect, connectors } = useConnect();
+  const { disconnect } = useDisconnect();
+  const chainId = useChainId();
+  const { switchChain } = useSwitchChain();
+
+  const isCorrectNetwork = chainId === somniaTestnet.id;
+
+  const handleConnect = () => {
+    const connector = connectors[0];
+    if (connector) {
+      connect({ connector });
+    }
+  };
 
   return (
     <aside className="flex h-screen w-64 flex-col border-r border-border-main bg-surface">
@@ -152,25 +168,64 @@ export function Sidebar() {
       </nav>
 
       <div className="border-t border-border-main p-4">
-        <button
-          type="button"
-          className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-text-muted transition-colors hover:bg-brand-pink-light hover:text-brand"
-        >
-          <svg
-            className="h-5 w-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+        {address ? (
+          <div className="space-y-2">
+            <p className="truncate px-4 font-mono text-xs text-text-muted">
+              {address.slice(0, 6)}...{address.slice(-4)}
+            </p>
+            <button
+              type="button"
+              onClick={() => switchChain({ chainId: somniaTestnet.id })}
+              className={`flex w-full cursor-pointer items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ${
+                isCorrectNetwork
+                  ? "border border-border-main bg-main text-foreground"
+                  : "border border-red-300 bg-red-50 text-red-600 hover:bg-red-100"
+              }`}
+            >
+              <Image
+                src="/Assets/Images/Logo/somnia-logo.webp"
+                alt="Somnia"
+                width={20}
+                height={20}
+                className="rounded-full"
+              />
+              <span className="flex-1 text-left">
+                {isCorrectNetwork ? "Somnia Testnet" : "Switch to Somnia"}
+              </span>
+              {isCorrectNetwork && (
+                <span className="h-2 w-2 rounded-full bg-green-500" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => disconnect()}
+              className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-text-muted transition-colors hover:bg-brand-pink-light hover:text-brand"
+            >
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                />
+              </svg>
+              <span>Disconnect</span>
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={handleConnect}
+            className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-brand-hover"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-            />
-          </svg>
-          <span>Disconnect</span>
-        </button>
+            Connect Wallet
+          </button>
+        )}
       </div>
     </aside>
   );

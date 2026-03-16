@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Web3Provider } from "@/components/providers/Web3Provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -14,7 +15,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        {children}
+        <Web3Provider>{children}</Web3Provider>
       </body>
     </html>
   );

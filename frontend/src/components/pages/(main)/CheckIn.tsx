@@ -1,15 +1,69 @@
 "use client";
 
+import { useConnection } from "wagmi";
+import { toast } from "sonner";
+import { useWillInfo, useSomMemoWrite, useScheduleCron } from "@/lib/hooks";
+import { SOMMEMO_ABI } from "@/lib/abi";
+import { CONTRACT_ADDRESS } from "@/lib/contract";
 import { CountdownTimer } from "./CountdownTimer";
 
 export function CheckIn() {
-  const lastCheckIn = "2 hours ago";
-  const targetDate = new Date();
-  targetDate.setDate(targetDate.getDate() + 29);
+  const { address } = useConnection();
+  const { data: willData } = useWillInfo(address);
+  const { writeContract, isPending, isConfirming } = useSomMemoWrite();
+  const { scheduleCron, isScheduling } = useScheduleCron();
+
+  const isProcessing = isPending || isConfirming || isScheduling;
+  const lastCheckIn = willData ? willData[1] : BigInt(0);
+  const inactivePeriod = willData ? willData[2] : BigInt(0);
+  const deadline = willData ? willData[3] : BigInt(0);
+
+  const lastCheckInText = lastCheckIn && lastCheckIn > BigInt(0)
+    ? new Date(Number(lastCheckIn) * 1000).toLocaleString()
+    : "--";
+
+  const deadlineDate = deadline ? new Date(Number(deadline)) : new Date();
 
   const handleCheckIn = () => {
-    console.log("Check-in button clicked");
+    writeContract(
+      {
+        address: CONTRACT_ADDRESS,
+        abi: SOMMEMO_ABI,
+        functionName: "checkIn",
+      },
+      {
+        onSuccess: async () => {
+          if (inactivePeriod && inactivePeriod > BigInt(0)) {
+            const newDeadlineMs = Date.now() + Number(inactivePeriod) * 1000;
+            try {
+              await scheduleCron(newDeadlineMs);
+              toast.success("Check-in successful & Reactivity cron rescheduled");
+            } catch {
+              toast.success("Check-in successful (cron auto-rescheduled by contract)");
+            }
+          } else {
+            toast.success("Check-in successful. Your deadline has been reset.");
+          }
+        },
+        onError: (err) => {
+          toast.error(err.message.split("\n")[0]);
+        },
+      },
+    );
   };
+
+  if (!address) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-foreground">Check-In</h1>
+          <p className="mt-2 text-sm text-text-muted">
+            Connect your wallet to check in
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -22,14 +76,16 @@ export function CheckIn() {
 
       <div className="rounded-lg border border-border-main bg-surface p-6">
         <h2 className="text-sm font-medium text-text-muted">Last Check-In</h2>
-        <p className="mt-2 text-2xl font-bold text-foreground">{lastCheckIn}</p>
+        <p className="mt-2 text-2xl font-bold text-foreground">
+          {lastCheckInText}
+        </p>
       </div>
 
       <div className="rounded-lg border border-border-main bg-surface p-6">
         <h2 className="mb-4 text-sm font-medium text-text-muted">
           Next Required Check-In
         </h2>
-        <CountdownTimer targetDate={targetDate} />
+        <CountdownTimer targetDate={deadlineDate} />
         <p className="mt-4 text-sm text-text-muted">
           You must check in before the countdown ends to prevent inheritance
           execution
@@ -46,9 +102,10 @@ export function CheckIn() {
         <button
           type="button"
           onClick={handleCheckIn}
-          className="cursor-pointer rounded-lg bg-brand px-8 py-4 text-base font-medium text-white transition-colors hover:bg-brand-hover"
+          disabled={isProcessing}
+          className="cursor-pointer rounded-lg bg-brand px-8 py-4 text-base font-medium text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
         >
-          I'm Still Active
+          {isProcessing ? "Processing..." : "I'm Still Active"}
         </button>
       </div>
     </div>

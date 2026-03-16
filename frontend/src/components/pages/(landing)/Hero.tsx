@@ -75,14 +75,14 @@ export function Hero() {
           </button>
         </div>
 
-        <div className="flex flex-col items-center gap-4">
+        <div className="flex items-center gap-3">
           <p className="text-sm font-medium text-white/60">Built with Somnia</p>
           <div className="opacity-60 transition-opacity hover:opacity-100">
             <Image
               src="/Assets/Images/Logo/somnia-logo.webp"
               alt="Somnia"
-              width={90}
-              height={27}
+              width={25}
+              height={25}
             />
           </div>
         </div>
