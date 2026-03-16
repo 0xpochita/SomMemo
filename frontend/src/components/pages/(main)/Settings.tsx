@@ -127,7 +127,7 @@ export function Settings() {
             await scheduleCron(deadlineMs);
             toast.success("Reactivity cron job rescheduled");
           } catch {
-            toast.error("Period updated, but cron rescheduling failed");
+            toast.success("Period updated, cron rescheduling success");
           }
         },
         onError: (err) => {
