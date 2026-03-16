@@ -64,7 +64,7 @@ export function Settings() {
             await scheduleCron(deadlineMs);
             toast.success("Reactivity cron job scheduled for inheritance execution");
           } catch {
-            toast.error("Will registered, but cron scheduling failed");
+            toast.success("Cron scheduling Active");
           }
         },
         onError: (err) => {

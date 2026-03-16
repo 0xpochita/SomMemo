@@ -16,6 +16,7 @@ interface TokenOption {
   symbol: string;
   logo: string;
   type: "native" | "erc20";
+  disabled?: boolean;
 }
 
 const TOKEN_OPTIONS: TokenOption[] = [
@@ -24,18 +25,21 @@ const TOKEN_OPTIONS: TokenOption[] = [
     symbol: "STT",
     logo: "/Assets/Images/Logo/somnia-logo.webp",
     type: "native",
+    disabled: false,
   },
   {
     name: "Ethereum",
     symbol: "ETH",
     logo: "/Assets/Images/Logo/eth-logo.svg",
     type: "erc20",
+    disabled: true,
   },
   {
     name: "USD Coin",
     symbol: "USDC",
     logo: "/Assets/Images/Logo/usdc-logo.webp",
     type: "erc20",
+    disabled: true,
   },
 ];
 
@@ -310,21 +314,35 @@ export function Vault() {
                             key={token.symbol}
                             type="button"
                             onClick={() => {
-                              setSelectedToken(token);
-                              setShowTokenSelector(false);
+                              if (!token.disabled) {
+                                setSelectedToken(token);
+                                setShowTokenSelector(false);
+                              }
                             }}
-                            className="flex w-full cursor-pointer items-center gap-3 border-b border-border-main px-4 py-3 text-sm transition-colors last:border-b-0 hover:bg-brand-pink-light"
+                            disabled={token.disabled}
+                            className={`flex w-full items-center justify-between gap-3 border-b border-border-main px-4 py-3 text-sm transition-colors last:border-b-0 ${
+                              token.disabled
+                                ? "cursor-not-allowed opacity-50"
+                                : "cursor-pointer hover:bg-brand-pink-light"
+                            }`}
                           >
-                            <Image
-                              src={token.logo}
-                              alt={token.name}
-                              width={24}
-                              height={24}
-                              className="rounded-full"
-                            />
-                            <span className="text-foreground">
-                              {token.name} ({token.symbol})
-                            </span>
+                            <div className="flex items-center gap-3">
+                              <Image
+                                src={token.logo}
+                                alt={token.name}
+                                width={24}
+                                height={24}
+                                className="rounded-full"
+                              />
+                              <span className="text-foreground">
+                                {token.name} ({token.symbol})
+                              </span>
+                            </div>
+                            {token.disabled && (
+                              <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
+                                Coming Soon
+                              </span>
+                            )}
                           </button>
                         ))}
                       </div>

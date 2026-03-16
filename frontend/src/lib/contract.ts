@@ -1,5 +1,5 @@
 export const CONTRACT_ADDRESS =
-  "0x20e8ff23F016D39710AcA46993B4074D783F374A" as const;
+  "0xbfd1dBe944a69870e9f2A14AD1c74E1DC49F9F53" as const;
 
 export const ERC20_ABI = [
   {

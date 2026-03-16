@@ -100,6 +100,41 @@ export const SOMMEMO_ABI = [
     stateMutability: "view",
   },
   {
+    type: "function",
+    name: "getCheckInHistory",
+    inputs: [{ name: "_owner", type: "address" }],
+    outputs: [
+      {
+        name: "",
+        type: "tuple[]",
+        components: [
+          { name: "timestamp", type: "uint256" },
+          { name: "blockNumber", type: "uint256" },
+        ],
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "getVaultHistory",
+    inputs: [{ name: "_owner", type: "address" }],
+    outputs: [
+      {
+        name: "",
+        type: "tuple[]",
+        components: [
+          { name: "actType", type: "uint8" },
+          { name: "asset", type: "address" },
+          { name: "amount", type: "uint256" },
+          { name: "timestamp", type: "uint256" },
+          { name: "blockNumber", type: "uint256" },
+        ],
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
     type: "event",
     name: "WillRegistered",
     inputs: [

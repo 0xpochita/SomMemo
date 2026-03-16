@@ -35,6 +35,26 @@ export function useVaultSTT(ownerAddress: `0x${string}` | undefined) {
   });
 }
 
+export function useCheckInHistory(ownerAddress: `0x${string}` | undefined) {
+  return useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: SOMMEMO_ABI,
+    functionName: "getCheckInHistory",
+    args: ownerAddress ? [ownerAddress] : undefined,
+    query: { enabled: !!ownerAddress },
+  });
+}
+
+export function useVaultHistory(ownerAddress: `0x${string}` | undefined) {
+  return useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: SOMMEMO_ABI,
+    functionName: "getVaultHistory",
+    args: ownerAddress ? [ownerAddress] : undefined,
+    query: { enabled: !!ownerAddress },
+  });
+}
+
 export function useSomMemoWrite() {
   const { writeContract, data: hash, isPending, error } = useWriteContract();
 
