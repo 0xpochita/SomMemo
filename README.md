@@ -50,7 +50,7 @@ No bots. No off-chain servers. No trusted third parties. The entire execution is
 | Multi-Asset Vault | Supports STT (native), ERC-20 tokens (soon), and ERC-721 NFTs (soon) in a single vault |
 | Somnia Reactivity | Uses `Schedule` system event — no keeper, no bot, no server |
 | On-Chain History | `getCheckInHistory()` and `getVaultHistory()` — no external indexer needed |
-| Flexible Deadline | Inactive period set freely in seconds — no preset restrictions |
+| Flexible Deadline | Inactive period set freely in seconds(for teting) and in a days — no preset restrictions |
 | CEI Pattern | Check-Effects-Interactions for reentrancy protection in `onEvent()` |
 
 ---
