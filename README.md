@@ -282,12 +282,3 @@ Deadline stored and looked up with millisecond rounding (`/ 1000 * 1000`) to han
 
 ---
 
-## Frontend Integration
-
-See [docsSC.md](./docsSC.md) for full frontend integration documentation including:
-- ethers.js v6 and Wagmi setup
-- All function signatures, parameters, and TypeScript examples
-- Minimal ABI
-- Event listeners
-- Error handling reference
-- How to get transaction hash from `blockNumber` without an indexer
