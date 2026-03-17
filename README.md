@@ -18,7 +18,7 @@
 
 **SomMemo** is an on-chain digital will (surat wasiat digital) running on the Somnia blockchain. It allows users to designate a beneficiary and deposit assets — STT (native token), ERC-20 tokens, and ERC-721 NFTs — into a secure vault. If the user fails to check in before a self-defined deadline, all assets are automatically transferred to the beneficiary.
 
-No bots. No off-chain servers. No trusted third parties. The entire execution is handled natively by **Somnia Reactivity**.
+No bots. No off-chain servers. No trusted third parties. The entire execution is handled natively by **Somnia Reactivity** using a **Schedule (cron) subscription** — a one-off time-based trigger that fires exactly at the user's deadline, then self-destructs. One will = one subscription. No recurring gas waste, no manual cleanup.
 
 ---
 
@@ -37,8 +37,9 @@ No bots. No off-chain servers. No trusted third parties. The entire execution is
 | Solution | How |
 |----------|-----|
 | **Trustless auto-execution** | Assets locked in smart contract — only released when Somnia Reactivity detects inactivity past the deadline |
-| **Native time-based trigger** | Somnia's `Schedule` event replaces external keepers entirely — validators execute `onEvent()` automatically |
-| **On-chain check-in** | Owner proves liveness by calling `checkIn()`, which resets the deadline with no external dependency |
+| **Schedule (cron) subscription** | One will = one one-off `Schedule` subscription — fires exactly at deadline, self-destructs after triggering, zero recurring gas cost |
+| **Native time-based trigger** | Somnia's `Schedule` event replaces external keepers entirely — validators execute `onEvent()` automatically at the precise timestamp |
+| **On-chain check-in** | Owner proves liveness by calling `checkIn()`, which cancels the old subscription and creates a new one with a reset deadline |
 
 ---
 
@@ -52,6 +53,20 @@ No bots. No off-chain servers. No trusted third parties. The entire execution is
 | On-Chain History | `getCheckInHistory()` and `getVaultHistory()` — no external indexer needed |
 | Flexible Deadline | Inactive period set freely in seconds(for teting) and in a days — no preset restrictions |
 | CEI Pattern | Check-Effects-Interactions for reentrancy protection in `onEvent()` |
+
+---
+
+## Somnia Reactivity Architecture Integration
+
+SomMemo relies entirely on Somnia Reactivity (cron subscription) to bridge time-based deadlines with on-chain execution — no off-chain components involved. Here are the core files composing this integration:
+
+| Component Level | File | Description |
+|----------------|------|-------------|
+| **Smart Contract** | [sc/contracts/SomMemo.sol](./sc/contracts/SomMemo.sol) | Main contract. Implements `ISomniaEventHandler` and registers a `Schedule` subscription on every `registerWill()` and `checkIn()` call |
+| **Subscription Logic** | [sc/contracts/SomMemo.sol#_createScheduleSubscription](./sc/contracts/SomMemo.sol) | Internal function that calls `reactivityPrecompile.subscribe()` with `Schedule` event topics and the user's deadline in milliseconds |
+| **Event Handler** | [sc/contracts/SomMemo.sol#onEvent](./sc/contracts/SomMemo.sol) | `onEvent()` — called automatically by Somnia validators when deadline is reached. Looks up owner via `deadlineToOwner`, then transfers all vault assets to beneficiary |
+| **Mock Precompile** | [sc/contracts/mock/MockSomniaPrecompile.sol](./sc/contracts/mock/MockSomniaPrecompile.sol) | Local mock of `0x0000...0100` for Hardhat testing without live Somnia network |
+| **Deployment** | [sc/ignition/modules/SomMemo.ts](./sc/ignition/modules/SomMemo.ts) | Hardhat Ignition module — deploys SomMemo with the Somnia Reactivity Precompile address (`0x0000...0100`) as constructor argument |
 
 ---
 
@@ -279,6 +294,48 @@ isGuaranteed      : true
 ```
 
 Deadline stored and looked up with millisecond rounding (`/ 1000 * 1000`) to handle Somnia's ±ms variance in `eventTopics` delivery.
+
+### Why SomMemo Uses Schedule (Cron) Subscription
+
+Somnia provides 3 types of system events. Here's why Schedule is the only right choice for SomMemo:
+
+| Event | Frequency | Right for SomMemo? |
+|-------|-----------|-------------------|
+| `BlockTick` | ~10x per second (every block) | No — fires too often, extremely gas-wasteful |
+| `EpochTick` | ~every 5 minutes | No — not precise, can miss deadline by minutes |
+| `Schedule` | Exactly at the specified timestamp | **Yes — ideal** |
+
+**1. Time Precision**
+```
+User sets deadline  : 30 days from now
+Schedule fires      : exactly at that timestamp     ✅
+BlockTick fires     : every block = thousands of times wasted
+EpochTick fires     : every 5 minutes = imprecise
+```
+
+**2. One-Off by Design**
+
+From Somnia docs: *"The subscription to Schedule is one-off and will be deleted after triggering."*
+
+This is perfect for a will system:
+- One Will = One Schedule subscription
+- After execution, automatically cleaned up
+- No manual cleanup needed
+
+**3. Cost Efficiency**
+```
+BlockTick : pay gas thousands of times per day
+EpochTick : pay gas hundreds of times per day
+Schedule  : pay gas ONCE when deadline arrives   ✅
+```
+
+**4. Exact Semantic Match**
+
+From Somnia docs: *"Schedule Event is useful for scheduling actions in the future."*
+
+SomMemo use case = *"execute transfer in the future if condition is met"* → **exact match**.
+
+**Conclusion:** SomMemo uses Schedule subscription because semantically and technically it is the only correct choice — precise timing, one-off, cost-efficient, and designed specifically for "future actions" as per Somnia docs.
 
 ---
 
