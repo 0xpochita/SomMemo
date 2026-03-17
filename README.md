@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./frontend/public/Assets/Images/Logo/sommemo-logo.png" width="200" alt="SomMemo Logo">
+<img src="./frontend/public/Assets/Images/Logo/sommemo-logo.png" width="150" alt="SomMemo Logo">
 
 # SomMemo
 
