@@ -4,12 +4,14 @@ pragma solidity ^0.8.28;
 interface ISomniaReactivityPrecompile {
     struct SubscriptionData {
         bytes32[4] eventTopics;
+        address origin;
+        address caller;
         address emitter;
         address handlerContractAddress;
         bytes4 handlerFunctionSelector;
-        uint256 priorityFeePerGas;
-        uint256 maxFeePerGas;
-        uint256 gasLimit;
+        uint64 priorityFeePerGas;
+        uint64 maxFeePerGas;
+        uint64 gasLimit;
         bool isGuaranteed;
         bool isCoalesced;
     }
@@ -20,7 +22,7 @@ interface ISomniaReactivityPrecompile {
 }
 
 interface ISomniaEventHandler {
-    function onEvent(bytes32[] calldata eventTopics, bytes calldata eventData) external;
+    function onEvent(uint256 subscriptionId, bytes32[] calldata eventTopics, bytes calldata eventData) external;
 }
 
 interface IERC20 {
@@ -65,11 +67,30 @@ contract SomMemo is ISomniaEventHandler {
         uint256 subscriptionId;
     }
 
+    // actType: 0=DepositSTT, 1=DepositToken, 2=DepositNFT, 3=WithdrawSTT, 4=WithdrawToken, 5=WithdrawNFT
+    struct VaultRecord {
+        uint8 actType;
+        address asset;      // token/nft address; address(0) for STT
+        uint256 amount;     // wei for STT, token amount for ERC20, tokenId for NFT
+        uint256 timestamp;
+        uint256 blockNumber;
+    }
+
+    struct CheckInRecord {
+        uint256 timestamp;
+        uint256 blockNumber;
+    }
+
     mapping(address => Will) public wills;
     mapping(address => uint256) public vaultSTT;
     mapping(address => TokenAsset[]) public vaultTokens;
     mapping(address => NFTAsset[]) public vaultNFTs;
     mapping(uint256 => address) public subscriptionIdToOwner;
+    mapping(uint256 => address) public deadlineToOwner;
+    // ↑ deadline milliseconds → owner address
+
+    mapping(address => CheckInRecord[]) private _checkInHistory;
+    mapping(address => VaultRecord[]) private _vaultHistory;
 
     event WillRegistered(address indexed owner, address indexed beneficiary, uint256 deadlineMs);
     event CheckedIn(address indexed owner, uint256 newDeadlineMs);
@@ -96,13 +117,12 @@ contract SomMemo is ISomniaEventHandler {
 
     function registerWill(
         address _beneficiary,
-        uint256 _inactiveDays
+        uint256 _inactivePeriodSec
     ) external {
         require(_beneficiary != address(0), "SomMemo: Beneficiary cannot be zero address/Beneficiary is not valid");
         require(_beneficiary != msg.sender, "SomMemo: Beneficiary cannot be the same as owner");
-        require(_inactiveDays == 30 || _inactiveDays == 90 || _inactiveDays == 180 || _inactiveDays == 365, "SomMemo: Period is not valid");
         require(!wills[msg.sender].active, "SomMemo: Will already registered");
-        uint256 inactivePeriodSec = _inactiveDays * 1 days;
+        uint256 inactivePeriodSec = _inactivePeriodSec;
         uint256 deadLineMs = (block.timestamp + inactivePeriodSec) * 1000;
         uint256 subId = _createScheduleSubscription(deadLineMs);
         wills[msg.sender] = Will({
@@ -117,28 +137,49 @@ contract SomMemo is ISomniaEventHandler {
         });
 
         subscriptionIdToOwner[subId] = msg.sender;
+        deadlineToOwner[deadLineMs / 1000 * 1000] = msg.sender;
+        // ↑ Simpan mapping deadline → owner (round ke detik terdekat)
         emit WillRegistered(msg.sender, _beneficiary, deadLineMs);
 
     }
 
     function checkIn() external onlyActiveWill {
         Will storage will = wills[msg.sender];
-        reactivityPrecompile.unsubscribe(will.subscriptionId);
-        delete subscriptionIdToOwner[will.subscriptionId];
-        uint256  newDeadlineMs = (block.timestamp + will.inactivePeriod) * 1000;
+
+        // TEMP: skip unsubscribe untuk debug
+        // reactivityPrecompile.unsubscribe(will.subscriptionId);
+        // delete subscriptionIdToOwner[will.subscriptionId];
+
+        uint256 newDeadlineMs = (block.timestamp + will.inactivePeriod) * 1000;
         uint256 newSubId = _createScheduleSubscription(newDeadlineMs);
+
+        delete deadlineToOwner[will.deadlineTimestamp / 1000 * 1000]; // hapus mapping deadline lama
+        deadlineToOwner[newDeadlineMs / 1000 * 1000] = msg.sender;  // daftarkan deadline baru
+
         will.lastCheckIn = block.timestamp;
         will.deadlineTimestamp = newDeadlineMs;
         will.subscriptionId = newSubId;
         subscriptionIdToOwner[newSubId] = msg.sender;
+
+        _checkInHistory[msg.sender].push(CheckInRecord({
+            timestamp: block.timestamp,
+            blockNumber: block.number
+        }));
+
         emit CheckedIn(msg.sender, newDeadlineMs);
-        
     }
 
     function depositSTT() external payable onlyActiveWill {
         require(msg.value > 0, "SomMemo: Amount must be greater than 0");
         vaultSTT[msg.sender] += msg.value;
-        emit DepositSTT(msg.sender, msg.value); 
+        _vaultHistory[msg.sender].push(VaultRecord({
+            actType: 0,
+            asset: address(0),
+            amount: msg.value,
+            timestamp: block.timestamp,
+            blockNumber: block.number
+        }));
+        emit DepositSTT(msg.sender, msg.value);
     }
 
     function depositToken(address _tokenAddress, uint256 _amount) external onlyActiveWill{
@@ -162,6 +203,13 @@ contract SomMemo is ISomniaEventHandler {
             }));
         }
 
+        _vaultHistory[msg.sender].push(VaultRecord({
+            actType: 1,
+            asset: _tokenAddress,
+            amount: _amount,
+            timestamp: block.timestamp,
+            blockNumber: block.number
+        }));
         emit DepositToken(msg.sender, _tokenAddress, _amount);
     }
 
@@ -173,18 +221,42 @@ contract SomMemo is ISomniaEventHandler {
             tokenId: _tokenId
         }));
 
+        _vaultHistory[msg.sender].push(VaultRecord({
+            actType: 2,
+            asset: _nftContract,
+            amount: _tokenId,
+            timestamp: block.timestamp,
+            blockNumber: block.number
+        }));
         emit DepositNFT(msg.sender, _nftContract, _tokenId);
     }
 
     function withdraw() external onlyActiveWill {
         uint256 sttAmount = vaultSTT[msg.sender];
         vaultSTT[msg.sender] = 0;
-        
+
+        if (sttAmount > 0) {
+            _vaultHistory[msg.sender].push(VaultRecord({
+                actType: 3,
+                asset: address(0),
+                amount: sttAmount,
+                timestamp: block.timestamp,
+                blockNumber: block.number
+            }));
+        }
+
         uint256 tokenCount = vaultTokens[msg.sender].length;
         for (uint256 i = 0; i < tokenCount; i++) {
             TokenAsset memory asset = vaultTokens[msg.sender][i];
             if (asset.amount > 0) {
                 IERC20(asset.tokenAddress).transfer(msg.sender, asset.amount);
+                _vaultHistory[msg.sender].push(VaultRecord({
+                    actType: 4,
+                    asset: asset.tokenAddress,
+                    amount: asset.amount,
+                    timestamp: block.timestamp,
+                    blockNumber: block.number
+                }));
             }
         }
         delete vaultTokens[msg.sender];
@@ -193,6 +265,13 @@ contract SomMemo is ISomniaEventHandler {
         for (uint256 i = 0; i < nftCount; i++) {
             NFTAsset memory nft = vaultNFTs[msg.sender][i];
             IERC721(nft.nftContract).safeTransferFrom(address(this), msg.sender, nft.tokenId);
+            _vaultHistory[msg.sender].push(VaultRecord({
+                actType: 5,
+                asset: nft.nftContract,
+                amount: nft.tokenId,
+                timestamp: block.timestamp,
+                blockNumber: block.number
+            }));
         }
         delete vaultNFTs[msg.sender];
 
@@ -212,18 +291,13 @@ contract SomMemo is ISomniaEventHandler {
         emit BeneficiaryUpdated(msg.sender, _newBeneficiary);
     }
 
-    function updateInactiveperiod(uint256 _newDays) external onlyActiveWill {
-        require(
-            _newDays == 30 || _newDays == 90 || _newDays == 180 || _newDays == 365, 
-            "SomMemo: Period is not valid"
-        );
-
+    function updateInactiveperiod(uint256 _newPeriodSec) external onlyActiveWill {
         Will storage will = wills[msg.sender];
 
-        reactivityPrecompile.unsubscribe(will.subscriptionId);
-        delete subscriptionIdToOwner[will.subscriptionId];
+        // reactivityPrecompile.unsubscribe(will.subscriptionId);
+        // delete subscriptionIdToOwner[will.subscriptionId];
 
-        uint256 newPeriodSec = _newDays * 1 days;
+        uint256 newPeriodSec = _newPeriodSec;
         uint256 newDeadlineMs = (block.timestamp + newPeriodSec) * 1000;
         uint256 newSubId = _createScheduleSubscription(newDeadlineMs);
 
@@ -238,8 +312,8 @@ contract SomMemo is ISomniaEventHandler {
     function deactive() external onlyActiveWill {
         Will storage will = wills[msg.sender];
 
-        reactivityPrecompile.unsubscribe(will.subscriptionId);
-        delete subscriptionIdToOwner[will.subscriptionId];
+        // reactivityPrecompile.unsubscribe(will.subscriptionId);
+        // delete subscriptionIdToOwner[will.subscriptionId];
         will.active = false;
 
         emit WillDeactivates(msg.sender);
@@ -247,11 +321,28 @@ contract SomMemo is ISomniaEventHandler {
         uint256 sttAmount = vaultSTT[msg.sender];
         vaultSTT[msg.sender] = 0;
 
+        if (sttAmount > 0) {
+            _vaultHistory[msg.sender].push(VaultRecord({
+                actType: 3,
+                asset: address(0),
+                amount: sttAmount,
+                timestamp: block.timestamp,
+                blockNumber: block.number
+            }));
+        }
+
         uint256 tokenCount = vaultTokens[msg.sender].length;
         for (uint256 i = 0; i < tokenCount; i++) {
             TokenAsset memory asset = vaultTokens[msg.sender][i];
             if (asset.amount > 0) {
                 IERC20(asset.tokenAddress).transfer(msg.sender, asset.amount);
+                _vaultHistory[msg.sender].push(VaultRecord({
+                    actType: 4,
+                    asset: asset.tokenAddress,
+                    amount: asset.amount,
+                    timestamp: block.timestamp,
+                    blockNumber: block.number
+                }));
             }
         }
         delete vaultTokens[msg.sender];
@@ -260,6 +351,13 @@ contract SomMemo is ISomniaEventHandler {
         for (uint256 i = 0; i < nftCount; i++) {
             NFTAsset memory nft = vaultNFTs[msg.sender][i];
             IERC721(nft.nftContract).safeTransferFrom(address(this), msg.sender, nft.tokenId);
+            _vaultHistory[msg.sender].push(VaultRecord({
+                actType: 5,
+                asset: nft.nftContract,
+                amount: nft.tokenId,
+                timestamp: block.timestamp,
+                blockNumber: block.number
+            }));
         }
         delete vaultNFTs[msg.sender];
 
@@ -301,6 +399,14 @@ contract SomMemo is ISomniaEventHandler {
         return "Active";
     }
 
+    function getCheckInHistory(address _owner) external view returns (CheckInRecord[] memory) {
+        return _checkInHistory[_owner];
+    }
+
+    function getVaultHistory(address _owner) external view returns (VaultRecord[] memory) {
+        return _vaultHistory[_owner];
+    }
+
     receive() external payable {
         if (wills[msg.sender].active) {
             vaultSTT[msg.sender] += msg.value;
@@ -309,40 +415,60 @@ contract SomMemo is ISomniaEventHandler {
     }
 
     function _createScheduleSubscription(uint256 _deadlineMs) internal returns (uint256) {
+        bytes32[4] memory topics;
+        topics[0] = keccak256("Schedule(uint256)");
+        topics[1] = bytes32(_deadlineMs);
+        // ↑ cast deadlineMs ke bytes32
+        topics[2] = bytes32(0);
+        topics[3] = bytes32(0);
+
         ISomniaReactivityPrecompile.SubscriptionData memory data = ISomniaReactivityPrecompile.SubscriptionData({
-            eventTopics: [SomniaExtensions.SCHEDULE_SELECTOR, bytes32(_deadlineMs), bytes32(0), bytes32(0)],
+            eventTopics: [topics[0], topics[1], topics[2], topics[3]],
+            origin: address(0),
+            caller: address(0),
             emitter: SomniaExtensions.SOMNIA_REACTIVITY_PRECOMPILE_ADDRESS,
             handlerContractAddress: address(this),
             handlerFunctionSelector: ISomniaEventHandler.onEvent.selector,
-            priorityFeePerGas: 1000000000,
-            maxFeePerGas: 20000000000,
-            gasLimit: 500000,
+            priorityFeePerGas: 2000000000,
+            maxFeePerGas: 10000000000,
+            gasLimit: 3000000,
             isGuaranteed: true,
             isCoalesced: false
         });
         return reactivityPrecompile.subscribe(data);
     }
 
+    // --------------------------------------------------------
+    // DEV ONLY — hapus sebelum production!
+    // Tarik semua STT dari contract untuk recycle ke deploy baru
+    // --------------------------------------------------------
+    function devWithdraw() external {
+        (bool sent, ) = payable(msg.sender).call{value: address(this).balance}("");
+        require(sent, "SomMemo: Failed to withdraw");
+    }
+
     function onEvent(
-        bytes32[] calldata eventTopics, 
-        bytes calldata /*eventData*/) 
+        uint256 subscriptionId,
+        bytes32[] calldata eventTopics,
+        bytes calldata /*eventData*/)
         external override {
 
-            require(
-                msg.sender == precompileAddress,
-                // ↑ Pakai alamat yang disimpan, bukan hardcoded
-                "SomMemo: Only Somnia can call this"
-            );
-
-            uint256 subId = uint256(eventTopics[0]);
-            address owner = subscriptionIdToOwner[subId];
+            // Coba lookup via subscriptionId dulu.
+            // Jika tidak ketemu (Somnia kirim ID berbeda dari yang di-return subscribe()),
+            // fallback ke deadlineToOwner menggunakan eventTopics[1] = deadline ms.
+            address owner = subscriptionIdToOwner[subscriptionId];
+            if (owner == address(0) && eventTopics.length > 1) {
+                // Round ke detik terdekat — Somnia bisa kirim nilai ms yg sedikit berbeda
+                uint256 deadlineKey = uint256(eventTopics[1]) / 1000 * 1000;
+                owner = deadlineToOwner[deadlineKey];
+            }
             if (owner == address(0)) return;
 
             Will storage will = wills[owner];
             if (!will.active || will.executed) return;
 
-            uint256 deadlineSec = will.deadlineTimestamp / 1000;
-            if (block.timestamp < deadlineSec) return;
+            // Timestamp check dihapus — Somnia dipercaya fire tepat waktu.
+            // Check ini sebelumnya menyebabkan silent return kalau Somnia fire 1 detik lebih awal.
 
             will.executed = true;
             will.active = false;

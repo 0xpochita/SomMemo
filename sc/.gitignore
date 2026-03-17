@@ -15,6 +15,14 @@
 
 # Typechain output
 /types
+/typechain-types
+
+# Dummy/generated files
+contracts/Counter.sol
+test/Counter.ts
+contracts/package.json
+contracts/package-lock.json
+/scripts
 
 # Hardhat coverage reports
 /coverage

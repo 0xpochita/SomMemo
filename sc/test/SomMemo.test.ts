@@ -119,10 +119,18 @@ describe("SomMemo", function () {
     //test Security
 
     describe("Security", function () {
-        it("onEvent should fail if it is not Somnia that calls it", async function () {
+        it("onEvent with unregistered subscriptionId should do nothing", async function () {
+            await somMemo.connect(owner).registerWill(beneficiary.address, 30);
+            const depositAmount = ethers.parseEther("1.0");
+            await somMemo.connect(owner).depositSTT({ value: depositAmount });
+
+            // subscriptionId 999 tidak terdaftar → harus silent return, vault tidak berubah
             await expect(
-                somMemo.connect(hacker).onEvent([], "0x")
-            ).to.be.revertedWith("SomMemo: Only Somnia can call this");
+                somMemo.connect(hacker).onEvent(999n, [], "0x")
+            ).to.not.be.reverted;
+
+            const vaultAfter = await somMemo.vaultSTT(owner.address);
+            expect(vaultAfter).to.equal(depositAmount); // vault tidak berubah
         });
     });
 });

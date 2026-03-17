@@ -28,6 +28,6 @@ contract MockSomniaPreCompile {
         bytes32[] memory topics = new bytes32[](1);
         topics[0] = bytes32(subscriptionId);
 
-        ISomniaEventHandler(somMemoAddress).onEvent(topics, "");
+        ISomniaEventHandler(somMemoAddress).onEvent(subscriptionId, topics, "");
     }
 }
