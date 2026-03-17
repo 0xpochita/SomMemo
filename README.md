@@ -47,7 +47,7 @@ No bots. No off-chain servers. No trusted third parties. The entire execution is
 | Feature | Description |
 |---------|-------------|
 | Fully On-Chain | All wills, vaults, check-ins, and executions recorded on Somnia blockchain |
-| Multi-Asset Vault | Supports STT (native), ERC-20 tokens, and ERC-721 NFTs in a single vault |
+| Multi-Asset Vault | Supports STT (native), ERC-20 tokens (soon), and ERC-721 NFTs (soon) in a single vault |
 | Somnia Reactivity | Uses `Schedule` system event — no keeper, no bot, no server |
 | On-Chain History | `getCheckInHistory()` and `getVaultHistory()` — no external indexer needed |
 | Flexible Deadline | Inactive period set freely in seconds — no preset restrictions |
@@ -177,8 +177,8 @@ SomMemo uses this for: **if a user doesn't check in before their deadline, Somni
 |----------|-------------|
 | `registerWill(address _beneficiary, uint256 _inactivePeriodSec)` | Register a new will — inactive period in seconds (e.g. `2592000` = 30 days) |
 | `depositSTT()` | Deposit STT (native token) to vault — payable |
-| `depositToken(address _tokenAddress, uint256 _amount)` | Deposit ERC-20 token to vault (requires prior `approve`) |
-| `depositNFT(address _nftContract, uint256 _tokenId)` | Deposit ERC-721 NFT to vault (requires prior `setApprovalForAll`) |
+| `depositToken(address _tokenAddress, uint256 _amount)` | Deposit ERC-20 token (soon) to vault (requires prior `approve`) |
+| `depositNFT(address _nftContract, uint256 _tokenId)` | Deposit ERC-721 NFT (soon) to vault (requires prior `setApprovalForAll`) |
 | `checkIn()` | Prove liveness — resets deadline to now + inactivePeriod |
 | `withdraw()` | Withdraw all vault assets back to owner |
 | `updateBeneficiary(address _newBeneficiary)` | Change beneficiary address |
@@ -200,11 +200,11 @@ SomMemo uses this for: **if a user doesn't check in before their deadline, Somni
 | Value | Action |
 |-------|--------|
 | `0` | Deposit STT |
-| `1` | Deposit ERC-20 Token |
-| `2` | Deposit NFT |
+| `1` | Deposit ERC-20 Token (soon) |
+| `2` | Deposit NFT (soon) |
 | `3` | Withdraw STT |
-| `4` | Withdraw ERC-20 Token |
-| `5` | Withdraw NFT |
+| `4` | Withdraw ERC-20 Token (soon) |
+| `5` | Withdraw NFT (soon) |
 
 ---
 
@@ -259,7 +259,7 @@ SomMemo/
 | Development | Hardhat + Hardhat Ignition |
 | Automation | Somnia Reactivity Precompile (`0x0000...0100`) |
 | Frontend | Next.js + ethers.js v6 |
-| Token Support | STT (native), ERC-20, ERC-721 |
+| Token Support | STT (native), ERC-20 (soon), ERC-721 (soon) |
 
 ---
 
