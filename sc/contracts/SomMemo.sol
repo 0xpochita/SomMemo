@@ -67,11 +67,10 @@ contract SomMemo is ISomniaEventHandler {
         uint256 subscriptionId;
     }
 
-    // actType: 0=DepositSTT, 1=DepositToken, 2=DepositNFT, 3=WithdrawSTT, 4=WithdrawToken, 5=WithdrawNFT
     struct VaultRecord {
         uint8 actType;
-        address asset;      // token/nft address; address(0) for STT
-        uint256 amount;     // wei for STT, token amount for ERC20, tokenId for NFT
+        address asset;     
+        uint256 amount;     
         uint256 timestamp;
         uint256 blockNumber;
     }
@@ -87,7 +86,6 @@ contract SomMemo is ISomniaEventHandler {
     mapping(address => NFTAsset[]) public vaultNFTs;
     mapping(uint256 => address) public subscriptionIdToOwner;
     mapping(uint256 => address) public deadlineToOwner;
-    // ↑ deadline milliseconds → owner address
 
     mapping(address => CheckInRecord[]) private _checkInHistory;
     mapping(address => VaultRecord[]) private _vaultHistory;
@@ -112,7 +110,6 @@ contract SomMemo is ISomniaEventHandler {
     constructor(address _precompileAddress) {
     reactivityPrecompile = ISomniaReactivityPrecompile(_precompileAddress);
     precompileAddress = _precompileAddress;
-    // ↑ Simpan alamat untuk dipakai di security check
     }
 
     function registerWill(
@@ -138,7 +135,6 @@ contract SomMemo is ISomniaEventHandler {
 
         subscriptionIdToOwner[subId] = msg.sender;
         deadlineToOwner[deadLineMs / 1000 * 1000] = msg.sender;
-        // ↑ Simpan mapping deadline → owner (round ke detik terdekat)
         emit WillRegistered(msg.sender, _beneficiary, deadLineMs);
 
     }
@@ -153,8 +149,8 @@ contract SomMemo is ISomniaEventHandler {
         uint256 newDeadlineMs = (block.timestamp + will.inactivePeriod) * 1000;
         uint256 newSubId = _createScheduleSubscription(newDeadlineMs);
 
-        delete deadlineToOwner[will.deadlineTimestamp / 1000 * 1000]; // hapus mapping deadline lama
-        deadlineToOwner[newDeadlineMs / 1000 * 1000] = msg.sender;  // daftarkan deadline baru
+        delete deadlineToOwner[will.deadlineTimestamp / 1000 * 1000]; 
+        deadlineToOwner[newDeadlineMs / 1000 * 1000] = msg.sender;  
 
         will.lastCheckIn = block.timestamp;
         will.deadlineTimestamp = newDeadlineMs;
@@ -418,7 +414,6 @@ contract SomMemo is ISomniaEventHandler {
         bytes32[4] memory topics;
         topics[0] = keccak256("Schedule(uint256)");
         topics[1] = bytes32(_deadlineMs);
-        // ↑ cast deadlineMs ke bytes32
         topics[2] = bytes32(0);
         topics[3] = bytes32(0);
 
@@ -439,8 +434,7 @@ contract SomMemo is ISomniaEventHandler {
     }
 
     // --------------------------------------------------------
-    // DEV ONLY — hapus sebelum production!
-    // Tarik semua STT dari contract untuk recycle ke deploy baru
+    // DEV ONLY//lupa apus :)
     // --------------------------------------------------------
     function devWithdraw() external {
         (bool sent, ) = payable(msg.sender).call{value: address(this).balance}("");
@@ -452,13 +446,9 @@ contract SomMemo is ISomniaEventHandler {
         bytes32[] calldata eventTopics,
         bytes calldata /*eventData*/)
         external override {
-
-            // Coba lookup via subscriptionId dulu.
-            // Jika tidak ketemu (Somnia kirim ID berbeda dari yang di-return subscribe()),
-            // fallback ke deadlineToOwner menggunakan eventTopics[1] = deadline ms.
+     
             address owner = subscriptionIdToOwner[subscriptionId];
             if (owner == address(0) && eventTopics.length > 1) {
-                // Round ke detik terdekat — Somnia bisa kirim nilai ms yg sedikit berbeda
                 uint256 deadlineKey = uint256(eventTopics[1]) / 1000 * 1000;
                 owner = deadlineToOwner[deadlineKey];
             }
@@ -466,9 +456,6 @@ contract SomMemo is ISomniaEventHandler {
 
             Will storage will = wills[owner];
             if (!will.active || will.executed) return;
-
-            // Timestamp check dihapus — Somnia dipercaya fire tepat waktu.
-            // Check ini sebelumnya menyebabkan silent return kalau Somnia fire 1 detik lebih awal.
 
             will.executed = true;
             will.active = false;
