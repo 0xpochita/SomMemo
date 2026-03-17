@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="./frontend/public/Assets/Images/Logo/sommemo-logo.png" width="200" alt="SomMemo Logo">
+
 # SomMemo
 
 **On-chain digital will powered by Somnia Reactivity —**
