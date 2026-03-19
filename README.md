@@ -241,7 +241,6 @@ RPC URL      : https://dream-rpc.somnia.network
 Chain ID     : 50312
 Symbol       : STT
 Explorer     : https://shannon-explorer.somnia.network
-Faucet       : https://testnet.somnia.network
 ```
 
 ---
