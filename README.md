@@ -7,7 +7,7 @@
 **On-chain digital will powered by Somnia Reactivity —**
 **your assets automatically transfer to your beneficiary if you go inactive.**
 
-[![Somnia Testnet](https://img.shields.io/badge/Somnia-Testnet-7C3AED)](https://somnia-testnet.socialscan.io)
+[![Somnia Testnet](https://img.shields.io/badge/Somnia-Testnet-7C3AED)](https://shannon-explorer.somnia.network)
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.28-363636)](https://soliditylang.org)
 [![Hardhat](https://img.shields.io/badge/Hardhat-Ignition-F7DF1E)](https://hardhat.org)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
@@ -240,7 +240,7 @@ Network Name : Somnia Testnet
 RPC URL      : https://dream-rpc.somnia.network
 Chain ID     : 50312
 Symbol       : STT
-Explorer     : https://somnia-testnet.socialscan.io
+Explorer     : https://shannon-explorer.somnia.network
 Faucet       : https://testnet.somnia.network
 ```
 
