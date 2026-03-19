@@ -229,7 +229,7 @@ SomMemo uses this for: **if a user doesn't check in before their deadline, Somni
 
 | Contract | Address | Verified |
 |----------|---------|---------|
-| SomMemo | [0xbfd1dBe944a69870e9f2A14AD1c74E1DC49F9F53](https://somnia-testnet.socialscan.io/address/0xbfd1dBe944a69870e9f2A14AD1c74E1DC49F9F53) | Yes |
+| SomMemo | [0xbfd1dBe944a69870e9f2A14AD1c74E1DC49F9F53](https://shannon-explorer.somnia.network/address/0xbfd1dBe944a69870e9f2A14AD1c74E1DC49F9F53) | Yes |
 
 ---
 
